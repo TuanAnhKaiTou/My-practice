@@ -1,36 +1,32 @@
-const express = require('express');
-const bcrypt = require('bcrypt');
-const router = express.Router();
-const Account = require('../models/account');
-const _ = require('lodash');
+const express = require('express'),
+      bcrypt = require('bcrypt'),
+      _ = require('lodash'),
+      router = express.Router(),
+      Account = require('../models/account');
 
-router.get('/:id', async (req, res) => {
+router.get('/:id', async (req, res, next) => {
   let id = req.params.id;
   const account = await Account.findById(id);
 
   try {
-    if (account) {
-      res.json({
-        status: 'success',
-        message: 'Get detail account successful',
-        data: account
-      });
-    } else {
+    if (!account) {
       res.status(404).json({
         status: 'error',
         message: 'Not found account'
       });
     }
-  } catch (err) {
-    console.log(err);
+
     res.json({
-      status: 'error',
-      message: 'Have error while getting detail account...'
+      status: 'success',
+      message: 'Get detail account successful',
+      data: account
     });
+  } catch (err) {
+    next(err);
   }
 });
 
-router.get('/', async (req, res) => {
+router.get('/', async (req, res, next) => {
   let objParam = _.pickBy(req.query, _.identity);
   let pageOptions = {
     page: parseInt(req.query.page) || 1,
@@ -47,93 +43,75 @@ router.get('/', async (req, res) => {
       data: accounts
     });
   } catch (err) {
-    console.log(err);
-    res.status(409).json({
-      status: 'error',
-      message: 'Have error while getting list account...'
-    });
+    next(err);
   }
 });
 
-router.post('/', async (req, res) => {
+router.post('/', async (req, res, next) => {
   let objBody = _.pickBy(req.body, _.identity);
   const accountExist = await Account.findOne({
     username: objBody.username
   });
 
   try {
-    if (!accountExist) {
-      let account = await new Account(objBody);
-      await account.save();
-      res.json({
-        status: 'success',
-        message: 'Create account success'
-      });
-    } else {
-      res.status(409).json({
-        status: 'error',
+    if (accountExist) {
+      throw {
+        status: 409,
         message: 'Account has exist'
-      });
-    }
-  } catch (err) {
-    if (err.errors) {
-      Object.keys(err.errors).forEach(key => {
-        res.status(409).json({
-          status: 'error',
-          message: err.errors[key].message
-        });
-      });
+      }
     }
 
-    console.log(err);
-    res.status(409).json({
-      status: 'error',
-      message: 'Have error while creating account...'
+    let account = await new Account(objBody);
+    await account.save();
+    res.json({
+      status: 'success',
+      message: 'Create account success'
     });
+  } catch (err) {
+    next(err);
   }
 });
 
-router.put('/:id', async (req, res) => {
+router.put('/:id', async (req, res, next) => {
   let id = req.params.id;
   let objBody = _.pickBy(req.body, _.identity);
   let keys = Object.keys(objBody);
   const account = await Account.findById(id);
 
   try {
-    if (account) {
-      keys.forEach(key => {
-        account[key] = objBody[key];
-      });
-      await account.save();
-      res.json({
-        status: 'success',
-        message: 'Update account success'
-      });
-    } else {
-      res.status(404).json({
-        status: 'error',
+    if (!account) {
+      throw {
+        status: 404,
         message: 'Not found account'
-      });
-    }
-  } catch(err) {
-    if (err.errors) {
-      Object.keys(err.errors).forEach(key => {
-        res.status(409).json({
-          status: 'error',
-          message: err.errors[key].message
-        });
-      });
+      }
     }
 
-    console.log(err);
-    res.status(409).json({
-      status: 'error',
-      message: 'Have error while updating account...'
+    keys.forEach(key => {
+      account[key] = objBody[key];
     });
+    await account.save();
+    res.json({
+      status: 'success',
+      message: 'Update account success'
+    });
+  } catch(err) {
+    next(err);
   }
 });
 
-router.delete('/:id', async (req, res) => {
+router.delete('/all', async (req, res, next) => {
+  try {
+    await Account.deleteMany();
+    res.json({
+      status: 'success',
+      message: 'Delete all account successful'
+    });
+  } catch (err) {
+    next(err);
+  }
+});
+
+router.delete('/:id', async (req, res, next) => {
   let id = req.body.id;
 
   try {
@@ -143,44 +121,38 @@ router.delete('/:id', async (req, res) => {
       message: 'Delete account successful'
     });
   } catch (err) {
-    console.log(err);
-    res.status(409).json({
-      status: 'error',
-      message: 'Have error while deleting account...'
-    });
+    next(err);
   }
 });
 
-router.post('/login', async (req, res) => {
+router.post('/login', async (req, res, next) => {
   let objBody = _.pickBy(req.body, _.identity);
   const account = await Account.findOne({username: objBody.username});
 
   try {
-    if (account) {
-      let hashPass = await bcrypt.compare(objBody.password, account.password);
-      if (hashPass) {
-        res.json({
-          status: 'success',
-          message: `Login successful. Welcome ${account.username}`
-        });
-      } else {
-        res.status(409).json({
-          status: 'error',
-          message: 'Password is wrong!!'
-        });
-      }
-    } else {
-      res.status(404).json({
-        status: 'error',
+    if (!account) {
+      throw {
+        status: 404,
         message: 'Not found account'
-      });
+      }
     }
-  } catch (err) {
-    console.log(err);
-    res.status(409).json({
-      status: 'error',
-      message: 'Have error while logging...'
+
+    let hashPass = await bcrypt.compare(objBody.password, account.password);
+    if (!hashPass) {
+      throw {
+        status: 409,
+        message: 'Password is wrong!!'
+      }
+    }
+
+    let token = account.createToken();
+    res.json({
+      status: 'success',
+      message: `Login successful. Welcome ${account.username}`,
+      token: token
     });
+  } catch (err) {
+    next(err);
   }
 });
 

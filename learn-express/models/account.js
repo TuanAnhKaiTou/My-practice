@@ -1,7 +1,10 @@
 const mongoose = require('mongoose'),
       bcrypt = require('bcrypt'),
+      jwt = require('jsonwebtoken'),
+      validator = require('validator'),
       Schema = mongoose.Schema,
-      SALT_FACTORY_WORK = 10;
+      SALT_FACTORY_WORK = 10,
+      SECRET_TOKEN = 'secretToken';
 
 const AccountSchema = new Schema({
   username: {
@@ -11,8 +14,17 @@ const AccountSchema = new Schema({
   },
   password: {
     type: String,
-    minLength: [8, 'The minimum length of password is 8 characters'],
-    maxLength: [20, 'The maximum length of password is 20 characters'],
+    validate(val) {
+      if (validator.contains(val, 'password') || validator.contains(val, '12345678')) {
+        throw new Error("Don't put `password` or `12345678` in your password!!!");
+      }
+      if (val.length < 8) {
+        throw new Error('The minimum length of password is 8 characters');
+      }
+      if (val.length > 20) {
+        throw new Error('The maximum length of password is 20 characters');
+      }
+    },
     required: [true, 'Password is required']
   },
   createdAt: { type: Date, default: Date.now },
@@ -21,22 +33,19 @@ const AccountSchema = new Schema({
   collection: 'account'
 });
 
-AccountSchema.pre('save', function(next) {
+AccountSchema.pre('save', async function(next) {
   let account = this;
-
   if (!account.isModified('password')) return next();
-
-  bcrypt.genSalt(SALT_FACTORY_WORK, function(err, salt) {
-    if (err) return next(err);
-
-    bcrypt.hash(account.password, salt, function(err, hash) {
-      if (err) return next(err);
-
-      account.password = hash;
-      next();
-    });
-  });
+  account.password = await bcrypt.hash(account.password, SALT_FACTORY_WORK);
+  next();
 });
+
+AccountSchema.methods.createToken = (err, next) => {
+  if (err) return next(err);
+  let payload = {username: this.username};
+  let token = jwt.sign(payload, SECRET_TOKEN);
+  return token;
+};
 
 const Account = mongoose.model('account', AccountSchema);
 

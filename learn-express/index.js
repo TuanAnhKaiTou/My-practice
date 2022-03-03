@@ -1,8 +1,8 @@
-const express = require('express');
-const morgan = require('morgan');
-const cors = require('cors');
-const db = require('./config/db');
-const accountRouter = require('./routers/account');
+const express = require('express'),
+      morgan = require('morgan'),
+      cors = require('cors'),
+      db = require('./config/db'),
+      accountRouter = require('./routers/account');
 
 db.connect();
 const app = express();
@@ -21,6 +21,29 @@ app.get('/', () => {
 });
 
 app.use('/user', accountRouter);
+app.use(function(err, req, res, next) {
+  let message;
+
+  if (err.status) {
+    message = err.message;
+    res.status(err.status).json({
+      status: 'error',
+      message: message
+    });
+  }
+
+  if (err.errors) {
+    const key = Object.keys(err.errors);
+    if (err.errors[key[0]] && err.errors[key[0]].properties) {
+      message = err.errors[key[0]].properties.message;
+    }
+    res.status(409).json({
+      status: 'error',
+      message: message
+    });
+  }
+
+});
 
 app.listen(port, (err) => {
   if (err) {
