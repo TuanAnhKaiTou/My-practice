@@ -2,7 +2,7 @@ const express = require('express'),
       morgan = require('morgan'),
       cors = require('cors'),
       db = require('./config/db'),
-      accountRouter = require('./routers/account');
+      userRouter = require('./routers/user');
 
 db.connect();
 const app = express();
@@ -20,7 +20,8 @@ app.get('/', () => {
   });
 });
 
-app.use('/user', accountRouter);
+app.use('/user', userRouter);
+
 app.use(function(err, req, res, next) {
   let message;
 
@@ -42,7 +43,6 @@ app.use(function(err, req, res, next) {
       message: message
     });
   }
-
 });
 
 app.listen(port, (err) => {

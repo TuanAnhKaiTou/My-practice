@@ -2,24 +2,26 @@ const express = require('express'),
       bcrypt = require('bcrypt'),
       _ = require('lodash'),
       router = express.Router(),
-      Account = require('../models/account');
+      moment = require('moment'),
+      User = require('../models/user'),
+      checkLogin = require('../middleware/auth');
 
 router.get('/:id', async (req, res, next) => {
   let id = req.params.id;
-  const account = await Account.findById(id);
+  const user = await User.findById(id);
 
   try {
-    if (!account) {
+    if (!user) {
       res.status(404).json({
         status: 'error',
-        message: 'Not found account'
+        message: 'Not found User'
       });
     }
 
     res.json({
       status: 'success',
-      message: 'Get detail account successful',
-      data: account
+      message: 'Get detail successful',
+      data: user
     });
   } catch (err) {
     next(err);
@@ -34,13 +36,13 @@ router.get('/', async (req, res, next) => {
   }
 
   try {
-    let accounts = await Account.find(objParam)
-                                .limit(pageOptions.limit)
-                                .skip(pageOptions.limit * (pageOptions.page - 1));
+    const users = await User.find(objParam)
+                            .limit(pageOptions.limit)
+                            .skip(pageOptions.limit * (pageOptions.page - 1));
     res.json({
       status: 'success',
-      message: 'Get list account successful',
-      data: accounts
+      message: 'Get list User successful',
+      data: users
     });
   } catch (err) {
     next(err);
@@ -49,50 +51,51 @@ router.get('/', async (req, res, next) => {
 
 router.post('/', async (req, res, next) => {
   let objBody = _.pickBy(req.body, _.identity);
-  const accountExist = await Account.findOne({
+  const userExist = await User.findOne({
     username: objBody.username
   });
 
   try {
-    if (accountExist) {
+    if (userExist) {
       throw {
         status: 409,
-        message: 'Account has exist'
+        message: 'User has exist'
       }
     }
 
-    let account = await new Account(objBody);
-    await account.save();
+    let user = await new User(objBody);
+    await user.save();
     res.json({
       status: 'success',
-      message: 'Create account success'
+      message: 'Create success'
     });
   } catch (err) {
     next(err);
   }
 });
 
-router.put('/:id', async (req, res, next) => {
+router.put('/:id', checkLogin, async (req, res, next) => {
   let id = req.params.id;
   let objBody = _.pickBy(req.body, _.identity);
+  objBody.updatedAt = moment().format('YYYY-MM-DD HH:mm:ss');
   let keys = Object.keys(objBody);
-  const account = await Account.findById(id);
+  const user = await User.findById(id);
 
   try {
-    if (!account) {
+    if (!user) {
       throw {
         status: 404,
-        message: 'Not found account'
+        message: 'Not found...'
       }
     }
 
     keys.forEach(key => {
-      account[key] = objBody[key];
+      user[key] = objBody[key];
     });
-    await account.save();
+    await user.save();
     res.json({
       status: 'success',
-      message: 'Update account success'
+      message: 'Update success'
     });
   } catch(err) {
     next(err);
@@ -101,10 +104,10 @@ router.put('/:id', async (req, res, next) => {
 
 router.delete('/all', async (req, res, next) => {
   try {
-    await Account.deleteMany();
+    await User.deleteMany();
     res.json({
       status: 'success',
-      message: 'Delete all account successful'
+      message: 'Delete all success'
     });
   } catch (err) {
     next(err);
@@ -115,10 +118,10 @@ router.delete('/:id', async (req, res, next) => {
   let id = req.body.id;
 
   try {
-    await Account.deleteOne({}, {_id: id});
+    await User.deleteOne({}, {_id: id});
     res.json({
       status: 'success',
-      message: 'Delete account successful'
+      message: 'Delete success'
     });
   } catch (err) {
     next(err);
@@ -127,28 +130,28 @@ router.delete('/:id', async (req, res, next) => {
 
 router.post('/login', async (req, res, next) => {
   let objBody = _.pickBy(req.body, _.identity);
-  const account = await Account.findOne({username: objBody.username});
+  const user = await User.findOne({username: objBody.username});
 
   try {
-    if (!account) {
+    if (!user) {
       throw {
         status: 404,
-        message: 'Not found account'
+        message: 'Not found...'
       }
     }
 
-    let hashPass = await bcrypt.compare(objBody.password, account.password);
+    let hashPass = await bcrypt.compare(objBody.password, user.password);
     if (!hashPass) {
       throw {
         status: 409,
-        message: 'Password is wrong!!'
+        message: 'Password is wrong...'
       }
     }
 
-    let token = account.createToken();
+    let token = user.createToken();
     res.json({
       status: 'success',
-      message: `Login successful. Welcome ${account.username}`,
+      message: `Login success. Welcome ${user.username}`,
       token: token
     });
   } catch (err) {
