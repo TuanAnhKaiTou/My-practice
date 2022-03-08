@@ -1,5 +1,5 @@
 const jwt = require('jsonwebtoken'),
-      Account = require('../models/user'),
+      User = require('../models/user'),
       SECRET_TOKEN = 'secretToken';
 
 let checkLogin = async (req, res, next) => {
@@ -13,11 +13,11 @@ let checkLogin = async (req, res, next) => {
     }
     let token = tokenBearer.replace('Bearer ', '');
     let decoded = jwt.verify(token, SECRET_TOKEN);
-
-    let account = await Account.findOne({username: decoded.username});
-    if (!account) {
-      throw new Error("This isn't account...");
+    let user = await User.findOne({username: decoded.username});
+    if (!user) {
+      throw new Error("You aren't a user...");
     }
+    req.user = user;
     next();
   } catch (err) {
     next(err);

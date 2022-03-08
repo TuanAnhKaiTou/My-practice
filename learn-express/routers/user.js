@@ -6,7 +6,7 @@ const express = require('express'),
       User = require('../models/user'),
       checkLogin = require('../middleware/auth');
 
-router.get('/:id', async (req, res, next) => {
+router.get('/:id', checkLogin, async (req, res, next) => {
   let id = req.params.id;
   const user = await User.findById(id);
 
@@ -41,7 +41,7 @@ router.get('/', async (req, res, next) => {
                             .skip(pageOptions.limit * (pageOptions.page - 1));
     res.json({
       status: 'success',
-      message: 'Get list User successful',
+      message: 'Get list successful',
       data: users
     });
   } catch (err) {
